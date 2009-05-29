@@ -24,8 +24,6 @@ struct
     | Couple (l, r) -> Constr ("Couple", [inject l; inject r])
     | Var _ -> Any
 
-  let raise_exc f e = try ignore (f e); false with _ -> true
-
   let rec eject c = match c with
     | Constr (s, []) when not (raise_exc int_of_string s) ->
         Int (int_of_string s)
@@ -37,8 +35,6 @@ struct
     | Constr ("Couple", [cl; cr]) -> Couple (eject cl, eject cr)
     | Any -> Var "_"
     | _ -> invalid_arg "TEST_SIG.eject"
-
-  type ty = | Bool | Prod of ty * ty | Sum of ty * ty
 
   let rec pp_pattern_ast p = match p with
     | True -> "True"
@@ -59,13 +55,9 @@ struct
       | ["Left"; "Right"] -> true
       | ["First"; "Second"] -> true
       | _ -> false
-    (* match ty with *)
-    (*   | Bool -> List.length l >= 2 *)
-    (*   | Sum _ -> List.length l >= 2 *)
-    (*   | Prod _ -> true *)
 
   let not_in l =
-    Printf.printf "not_in [%s]\n" (concat_with ";" l);
+    (* Printf.printf "not_in [%s]\n" (concat_with ";" l); *)
     match l with
       | ["True"] -> "False"
       | ["False"] -> "True"
@@ -90,6 +82,19 @@ open TEST_SIG
 open TEST_CHECKER
 
 let _ =
-  check_pattern_matching [[Couple (True, Var "x")]; [Couple (False, True)]];
-  (* check_pattern_matching [[True]]; *)
-
+  let p =
+    [(Couple (True, Var "x"));
+     (Couple (False, True));
+     (Couple (True, False))] in
+  let r = check p in
+  begin match r.not_matched with
+    | None -> ()
+    | Some p -> Printf.printf "Unmatched pattern: %s.\n" (pp_pattern_ast p)
+  end;
+  begin match r.redundant_patterns with
+    | [] -> ()
+    | l ->
+        let f p =
+          Printf.printf "Warning: pattern %s is unused.\n" (pp_pattern_ast p) in
+        List.iter f l
+  end

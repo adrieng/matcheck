@@ -50,3 +50,4 @@ module SSet = Set.Make(struct
                          type t = string
                          let compare s1 s2 = compare s1 s2
                        end)
+let raise_exc f e = try ignore (f e); false with _ -> true

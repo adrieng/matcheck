@@ -30,9 +30,6 @@ sig
   type pattern_ast
   val inject : pattern_ast -> tag pattern
   val eject : tag pattern -> pattern_ast
-
-  val pp_pattern_ast : pattern_ast -> string
-
 end
 
 (********************************************************************)
@@ -186,15 +183,7 @@ struct
                   List.fold_left simple_union (Some []) computed_Ej
             end
 
-    let disp_list l = List.map (fun lp -> S.pp_pattern_ast (S.eject lp)) l
-
-    let rec algI m n i =
-      Printf.printf "%salgI> %d\n" (String.make i ' ') n;
-      List.iter (fun l -> Printf.printf "%s%s\n"
-                   (String.make i ' ')
-                   (concat_with " | " (disp_list l))) m;
-      let r = begin
-      match (m, n) with
+    let rec algI m n = match (m, n) with
       | ([], 0) -> Some []
       | ([] :: _, 0) -> None
       | (m, n) ->
@@ -204,7 +193,7 @@ struct
           let default =
             if is_complete sigma_c
             then None
-            else algI (matD m) (n - 1) (i + 1) in
+            else algI (matD m) (n - 1) in
           begin match default with
             | Some p ->
                 begin match sigma with
@@ -218,7 +207,7 @@ struct
                   | [] -> None
                   | (c, ar) :: sigma' ->
                       let res =
-                        algI (matS c ar m) (ar + n - 1) (i + 1) in
+                        algI (matS c ar m) (ar + n - 1) in
                       begin match res with
                         | None -> traverse_sigma sigma'
                         | Some v ->
@@ -227,61 +216,35 @@ struct
                       end in
                 traverse_sigma sigma
           end
-      end in
-      Printf.printf "%s=> %s\n"
-        (String.make i ' ')
-        (match r with
-           | None -> "None"
-           | Some l -> concat_with " | " (disp_list l));
-      r
 
-    type result = { not_matched : pattern_ast option;
-                    redundant_patterns : pattern_ast list; }
+    type result = { not_matched : S.pattern_ast option;
+                    redundant_patterns : S.pattern_ast list; }
 
-    let check_pattern_matching m =
-      let m' = List.map (fun v -> List.map S.inject v) m in
+    let check m =
+      let m' = List.map (fun v -> [S.inject v]) m in
       match m' with
-        | [] -> invalid_arg "check_matching"
+        | [] -> invalid_arg "check"
         | v :: _ ->
-            let n = List.length v in
-            begin match algI m' n 0 with
-              | None -> ()
-              | Some vr ->
-                  Printf.printf "Warning: non-exhaustive pattern-matching.\n";
-                  Printf.printf "Not matched: %s\n" (concat_with " | "
-                                                       (disp_list vr))
-            end;
-            let make_trivec v = { p = v; q = []; r = [] } in
-            let make_trimat m = List.map make_trivec m in
-            let string_of_patt p = S.pp_pattern_ast (S.eject p) in
-            let check_line m v =
-              let r = algU' (make_trimat m) (make_trivec v) in
-              begin match r with
-                | Some [] -> ()
-                | Some r ->
-                    Printf.printf "Warning: unused patterns:\n";
-                    let rs : string list = List.map string_of_patt r in
-                    Printf.printf "(%s)\n" (concat_with "|" rs)
-                | None ->
-                    let rs = List.map string_of_patt v in
-                    Printf.printf "Warning: unused pattern %s.\n"
-                      (concat_with "|" rs)
-              end;
-              m @ [v] in
-            ignore (List.fold_left check_line [(List.hd m')] (List.tl m'))
+            { not_matched =
+                begin
+                  let n = List.length v in
+                  match algI m' n with
+                    | None -> None
+                    | Some [p] -> Some (S.eject p)
+                    | _ -> assert false
+                end;
+              redundant_patterns =
+                begin
+                  let make_trivec v = { p = v; q = []; r = [] } in
+                  let make_trimat m = List.map make_trivec m in
+                  let check_line (m, red) v =
+                    let r = algU' (make_trimat m) (make_trivec v) in
+                    (m @ [v], match r with
+                       | Some [] -> red
+                       | Some r -> List.map S.eject r @ red
+                       | None -> List.map S.eject v @ red) in
+                  let (_, red) = List.fold_left
+                    check_line ([(List.hd m')], []) (List.tl m') in
+                  red;
+                end }
 end
-
-(* let ident fmt s = Format.sprintf fmt "%s" s *)
-
-(* let rec pp_pattern fmt c = match c with *)
-(*   | Any -> ident fmt "_" *)
-(*   | Or (l, r) -> *)
-(*       Format.fprintf fmt "@[(%a@ |@ %a)@]" pp_pattern l pp_pattern r *)
-(*   | Constr (c, l) -> *)
-(*       let rec pp fmt l = match l with *)
-(*         | [] -> ident fmt "" *)
-(*         | [e] -> Format.fprintf fmt "%a" pp_pattern e *)
-(*         | h :: t -> Format.fprintf fmt "%a,@ %a" pp_pattern h pp t in *)
-(*       Format.fprintf fmt "@[%s(%a)@]" c pp l *)
-(* and pp_pattern' c = pp_pattern Format.std_formatter c *)
-
