@@ -1,3 +1,10 @@
+(******************************************************************************)
+(* A generic pattern-matching verifier based on Luc Maranget's paper.         *)
+(* Copyright (c) 2009 Adrien Guatto                                           *)
+(******************************************************************************)
+
+(* See http://pauillac.inria.fr/~maranget/papers/warn/index.html *)
+
 open Utils
 
 (********************************************************************)
@@ -47,11 +54,13 @@ struct
   let is_complete sigma = S.is_complete (uniq sigma)
   let not_in sigma = S.not_in (uniq sigma)
 
+  (** Extract constructors from pattern. *)
   let rec head_constrs h = match h with
     | Constr (c, q) -> [(c, List.length q)]
     | Or (l, r) -> head_constrs l @ head_constrs r
     | Any -> []
 
+  (** Implementation of S(c,p) as described in the paper's first part. *)
   let rec matS c ar p =
     let vecS pv = match pv with
       | [] -> assert false
@@ -60,43 +69,49 @@ struct
       | Or (t1, t2) :: pv' -> matS c ar [t1 :: pv'; t2 :: pv'] in
     List.concat (List.map vecS p)
 
-    let rec matD p =
-      let vecD pv = match pv with
-        | Constr _ :: _ -> []
-        | Any :: pv' -> [pv']
-        | Or (t1, t2) :: pv' -> matD [t1 :: pv'; t2 :: pv']
-        | _ -> assert false in
-      List.concat (List.map vecD p)
+  (** Implementation of D(p) as described in the paper's first part. *)
+  let rec matD p =
+    let vecD pv = match pv with
+      | Constr _ :: _ -> []
+      | Any :: pv' -> [pv']
+      | Or (t1, t2) :: pv' -> matD [t1 :: pv'; t2 :: pv']
+      | _ -> assert false in
+    List.concat (List.map vecD p)
 
-    let rec algU p q =
-      match (p, q) with
-        | ([], _) -> true       (* p has no lines *)
-        | (_ :: _, []) -> false (* p has no columns *)
+  (** U(p,q) from the paper. Most important function, called by higher level
+      ones. Tests the usefulness of q relatively to p. *)
+  let rec algU p q =
+    match (p, q) with
+      | ([], _) -> true       (* p has no lines *)
+      | (_ :: _, []) -> false (* p has no columns *)
 
-        | (h :: t,  Constr (c, r) :: q') ->
-            let p' = matS c (List.length r) p in
-            algU p' (r @ q')
+      | (h :: t,  Constr (c, r) :: q') ->
+          let p' = matS c (List.length r) p in
+          algU p' (r @ q')
 
-        | (h :: t, Or (r1, r2) :: q') ->
-            algU p (r1 :: q') || algU p (r2 :: q')
+      | (h :: t, Or (r1, r2) :: q') ->
+          algU p (r1 :: q') || algU p (r2 :: q')
 
-        | (h :: t, Any :: q') ->
-            let sigma =
-              List.concat (List.map (fun v -> head_constrs (List.hd v)) p) in
-            let algU_constr (c_k, ar_k) =
-              let p' = matS c_k ar_k p in
-              algU p' (repeat ar_k Any @ q') in
-            let sigma_used = List.exists algU_constr sigma in
-            sigma_used || (if not (is_complete (List.map fst sigma))
-                           then algU (matD p) q' else false)
+      | (h :: t, Any :: q') ->
+          let sigma =
+            List.concat (List.map (fun v -> head_constrs (List.hd v)) p) in
+          let algU_constr (c_k, ar_k) =
+            let p' = matS c_k ar_k p in
+            algU p' (repeat ar_k Any @ q') in
+          let sigma_used = List.exists algU_constr sigma in
+          sigma_used || (if not (is_complete (List.map fst sigma))
+                         then algU (matD p) q' else false)
 
 
+    (** Type used for efficient testing of usefulness and redundancy of
+        pattern-matching cases. *)
     type 'a trivec = { p : 'a patt_vec;
                        q : 'a patt_vec;
                        r : 'a patt_vec }
     and 'a trimat = 'a trivec list
 
 
+    (** Second de finition of S(c,p) for tri-matrices. *)
     let rec trimatS c arity mv =
       let filter_line l = match l.p with
           | Constr (c', t) :: p' ->
@@ -108,10 +123,12 @@ struct
           | _ -> assert false in
       List.concat (List.map filter_line mv)
 
+    (** {i shift1 l} shifts an element from {i l.p} to {i l.q}. *)
     let shift1 l = match l.p with
       | p :: p' -> { l with p = p'; q = p :: l.q }
       | _ -> assert false
 
+    (** {i shift2 l} shifts an element from {i l.p} to {i l.r}. *)
     let shift2 l = match l.p with
       | p :: p' -> { l with p = p'; r = p :: l.r }
       | _ -> assert false
