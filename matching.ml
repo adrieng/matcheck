@@ -161,7 +161,7 @@ struct
                   if algU qm v.q then Some [] else None
               | _ :: _ ->
                   let rec compute_Ej j =
-                    begin match List.nth v.r j with
+                    begin match List.nth v.r (j - 1) with
                       | Or (t1, t2) ->
                           let f l =
                             let r_j = keep l.r j
