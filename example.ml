@@ -84,17 +84,21 @@ open TEST_CHECKER
 let _ =
   let p =
     [(Couple (True, Var "x"));
-     (Couple (False, True));
+     (OrA (Couple (False, True), Couple(False, True)));
      (Couple (True, False))] in
   let r = check p in
   begin match r.not_matched with
     | None -> ()
-    | Some p -> Printf.printf "Unmatched pattern: %s.\n" (pp_pattern_ast p)
+    | Some p ->
+        printf "Warning: this pattern-matching is not exhaustive.\n";
+        printf "Here is an example of a value that is not matched:\n";
+        printf "%s\n" (pp_pattern_ast p)
   end;
   begin match r.redundant_patterns with
     | [] -> ()
     | l ->
         let f p =
-          Printf.printf "Warning: pattern %s is unused.\n" (pp_pattern_ast p) in
+          Printf.printf "Warning: match-case %s is unused.\n"
+            (pp_pattern_ast p) in
         List.iter f l
   end
