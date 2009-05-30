@@ -8,7 +8,7 @@ struct
 
   type pattern_ast =
     | True | False
-    | Int of int
+    | OrA of pattern_ast * pattern_ast
     | Left of pattern_ast | Right of pattern_ast
     | Couple of pattern_ast * pattern_ast
     | First of pattern_ast | Second of pattern_ast
@@ -16,7 +16,7 @@ struct
 
   let rec inject c = match c with
     | True -> Constr ("True", []) | False -> Constr ("False", [])
-    | Int i -> Constr (string_of_int i, [])
+    | OrA (l, r) -> Or (inject l, inject r)
     | Left p -> Constr ("Left", [inject p])
     | Right p -> Constr ("Right", [inject p])
     | First p -> Constr ("First", [inject p])
@@ -25,8 +25,7 @@ struct
     | Var _ -> Any
 
   let rec eject c = match c with
-    | Constr (s, []) when not (raise_exc int_of_string s) ->
-        Int (int_of_string s)
+    | Or (l, r) -> OrA (eject l, eject r)
     | Constr ("True", []) -> True | Constr ("False", []) -> False
     | Constr ("Left", [p]) -> Left (eject p)
     | Constr ("Right", [p]) -> Right (eject p)
@@ -39,7 +38,7 @@ struct
   let rec pp_pattern_ast p = match p with
     | True -> "True"
     | False -> "False"
-    | Int i -> string_of_int i
+    | OrA (l, r) -> pp_pattern_ast l ^ "|" ^ pp_pattern_ast r
     | Left p' -> Printf.sprintf "Left %s\n" (pp_pattern_ast p')
     | Right p' -> Printf.sprintf "Right %s\n" (pp_pattern_ast p')
     | First p' -> Printf.sprintf "(fst %s)\n" (pp_pattern_ast p')
@@ -57,7 +56,6 @@ struct
       | _ -> false
 
   let not_in l =
-    (* Printf.printf "not_in [%s]\n" (concat_with ";" l); *)
     match l with
       | ["True"] -> "False"
       | ["False"] -> "True"
