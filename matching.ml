@@ -5,7 +5,7 @@
 
 (* See http://pauillac.inria.fr/~maranget/papers/warn/index.html *)
 
-open Utils
+open Misc
 
 (********************************************************************)
 (* Syntax for patterns, and pretty-printers                         *)
@@ -14,9 +14,9 @@ open Utils
 (** Generic pattern, basically constructors with holes and alternation,
     tagged with any type. *)
 type 'a pattern =
-  | Any
-  | Or of 'a pattern * 'a pattern
-  | Constr of 'a * 'a pattern list
+  | Pany
+  | Por of 'a pattern * 'a pattern
+  | Pconstr of 'a * 'a pattern list
 and 'a patt_vec = 'a pattern list
 (* Row vectors *)
 and 'a patt_matrix = 'a patt_vec list
@@ -56,25 +56,25 @@ struct
 
   (** Extract constructors from pattern. *)
   let rec head_constrs h = match h with
-    | Constr (c, q) -> [(c, List.length q)]
-    | Or (l, r) -> head_constrs l @ head_constrs r
-    | Any -> []
+    | Pconstr (c, q) -> [(c, List.length q)]
+    | Por (l, r) -> head_constrs l @ head_constrs r
+    | Pany -> []
 
   (** Implementation of S(c,p) as described in the paper's first part. *)
   let rec matS c ar p =
     let vecS pv = match pv with
       | [] -> assert false
-      | Constr (c', r') :: pv' -> if c = c' then [r' @ pv'] else []
-      | Any :: pv' -> [repeat ar Any @ pv']
-      | Or (t1, t2) :: pv' -> matS c ar [t1 :: pv'; t2 :: pv'] in
+      | Pconstr (c', r') :: pv' -> if S.compare c c' = 0 then [r' @ pv'] else []
+      | Pany :: pv' -> [repeat ar Pany @ pv']
+      | Por (t1, t2) :: pv' -> matS c ar [t1 :: pv'; t2 :: pv'] in
     List.concat (List.map vecS p)
 
   (** Implementation of D(p) as described in the paper's first part. *)
   let rec matD p =
     let vecD pv = match pv with
-      | Constr _ :: _ -> []
-      | Any :: pv' -> [pv']
-      | Or (t1, t2) :: pv' -> matD [t1 :: pv'; t2 :: pv']
+      | Pconstr _ :: _ -> []
+      | Pany :: pv' -> [pv']
+      | Por (t1, t2) :: pv' -> matD [t1 :: pv'; t2 :: pv']
       | _ -> assert false in
     List.concat (List.map vecD p)
 
@@ -85,19 +85,19 @@ struct
       | ([], _) -> true       (* p has no lines *)
       | (_ :: _, []) -> false (* p has no columns *)
 
-      | (h :: t,  Constr (c, r) :: q') ->
+      | (h :: t,  Pconstr (c, r) :: q') ->
           let p' = matS c (List.length r) p in
           algU p' (r @ q')
 
-      | (h :: t, Or (r1, r2) :: q') ->
+      | (h :: t, Por (r1, r2) :: q') ->
           algU p (r1 :: q') || algU p (r2 :: q')
 
-      | (h :: t, Any :: q') ->
+      | (h :: t, Pany :: q') ->
           let sigma =
             List.concat (List.map (fun v -> head_constrs (List.hd v)) p) in
           let algU_constr (c_k, ar_k) =
             let p' = matS c_k ar_k p in
-            algU p' (repeat ar_k Any @ q') in
+            algU p' (repeat ar_k Pany @ q') in
           let sigma_used = List.exists algU_constr sigma in
           sigma_used || (if not (is_complete (List.map fst sigma))
                          then algU (matD p) q' else false)
@@ -114,11 +114,11 @@ struct
     (** Second de finition of S(c,p) for tri-matrices. *)
     let rec trimatS c arity mv =
       let filter_line l = match l.p with
-          | Constr (c', t) :: p' ->
-              if c = c' then [{ l with p = t @ p' }] else []
-          | Any :: p' ->
-              [{ l with p = repeat arity Any @ p' }]
-          | Or (t1, t2) :: p' ->
+          | Pconstr (c', t) :: p' ->
+              if S.compare c c' = 0 then [{ l with p = t @ p' }] else []
+          | Pany :: p' ->
+              [{ l with p = repeat arity Pany @ p' }]
+          | Por (t1, t2) :: p' ->
               trimatS c arity [{ l with p = t1 :: p' }; { l with p = t2 :: p' }]
           | _ -> assert false in
       List.concat (List.map filter_line mv)
@@ -164,11 +164,11 @@ struct
     let rec algU' m v =
       match v.p with
           (* Phase one *)
-        | Constr (c, t) :: p' ->
+        | Pconstr (c, t) :: p' ->
             algU' (trimatS c (List.length t) m) { v with p = t @ p' }
-        | Any :: _ ->
+        | Pany :: _ ->
             algU' (List.map shift1 m) (shift1 v)
-        | Or _ :: _ ->
+        | Por _ :: _ ->
             algU' (List.map shift2 m) (shift2 v)
         | [] ->
             (* Phase two *)
@@ -179,7 +179,7 @@ struct
               | _ :: _ ->
                   let rec compute_Ej j =
                     begin match List.nth v.r (j - 1) with
-                      | Or (t1, t2) ->
+                      | Por (t1, t2) ->
                           let f l =
                             let r_j = keep l.r j
                             and r_woj = drop l.r j in
@@ -214,10 +214,10 @@ struct
           begin match default with
             | Some p ->
                 begin match sigma with
-                  | [] -> Some (Any :: p)
+                  | [] -> Some (Pany :: p)
                   | _ :: _ ->
                       let c' = not_in sigma_c in
-                      Some (Constr (c', repeat (S.arity c') Any) :: p)
+                      Some (Pconstr (c', repeat (S.arity c') Pany) :: p)
                 end
             | None ->
                 let rec traverse_sigma sigma = match sigma with
@@ -229,7 +229,7 @@ struct
                         | None -> traverse_sigma sigma'
                         | Some v ->
                             let (r, p) = separate ar v in
-                            Some (Constr (c, r) :: p)
+                            Some (Pconstr (c, r) :: p)
                       end in
                 traverse_sigma sigma
           end

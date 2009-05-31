@@ -5,9 +5,9 @@
 
 (** Generic representation of patterns used by the algorithm. *)
 type 'a pattern =
-    Any
-  | Or of 'a pattern * 'a pattern
-  | Constr of 'a * 'a pattern list
+  | Pany
+  | Por of 'a pattern * 'a pattern
+  | Pconstr of 'a * 'a pattern list
 
 (** This signature describes the pattern-matching part of your language. *)
 module type SIG =
