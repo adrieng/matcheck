@@ -1,6 +1,6 @@
 (******************************************************************************)
 (* A generic pattern-matching verifier based on Luc Maranget's paper.         *)
-(* Copyright (c) 2009 Adrien Guatto                                           *)
+(* Copyright (c) 2009 Adrien Guatto - Licensed under MIT license.             *)
 (******************************************************************************)
 
 (** Generic representation of patterns used by the algorithm. *)

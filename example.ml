@@ -1,3 +1,8 @@
+(******************************************************************************)
+(* A generic pattern-matching verifier based on Luc Maranget's paper.         *)
+(* Copyright (c) 2009 Adrien Guatto - Licensed under MIT license.             *)
+(******************************************************************************)
+
 open Matching
 open Utils
 

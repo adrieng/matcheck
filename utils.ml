@@ -1,3 +1,8 @@
+(******************************************************************************)
+(* A generic pattern-matching verifier based on Luc Maranget's paper.         *)
+(* Copyright (c) 2009 Adrien Guatto - Licensed under MIT license.             *)
+(******************************************************************************)
+
 let uncurry f (a, b) = f a b
 let rec repeat n a = match n with | 0 -> [] | n -> a :: (repeat (n - 1) a)
 let concat_with sep l =
