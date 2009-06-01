@@ -5,7 +5,7 @@
 
 (* See http://pauillac.inria.fr/~maranget/papers/warn/index.html *)
 
-open Misc
+open Utils
 
 (********************************************************************)
 (* Syntax for patterns, and pretty-printers                         *)
@@ -137,10 +137,6 @@ struct
       | (Some l, Some l') -> Some (l @ l')
       | (None, _) | (_, None) -> None
 
-    let explode n m =
-      let l = List.map (cut_at n) m in
-      (List.map (fun (b, _, a) -> b @ a) l,
-       List.map (fun (_, x, _) -> [x]) l)
 
     let rec (@&) m1 m2 = match (m1, m2) with
       | ([], []) -> []

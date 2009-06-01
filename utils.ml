@@ -5,6 +5,7 @@
 
 let uncurry f (a, b) = f a b
 let rec repeat n a = match n with | 0 -> [] | n -> a :: (repeat (n - 1) a)
+let raise_exc f e = try ignore (f e); false with _ -> true
 let concat_with sep l =
   List.fold_left (fun a b -> if a = "" then b else a ^ sep ^ b) "" l;;
 let sort_uniq l =
@@ -51,8 +52,10 @@ let rec drop l n = match (l, n) with
   | (_ :: t, 1) -> t
   | (h :: t, n) -> h :: (drop t (n - 1))
   | _ -> invalid_arg "drop"
-module SSet = Set.Make(struct
-                         type t = string
-                         let compare s1 s2 = compare s1 s2
-                       end)
-let raise_exc f e = try ignore (f e); false with _ -> true
+
+
+
+    let explode n m =
+      let l = List.map (cut_at n) m in
+      (List.map (fun (b, _, a) -> b @ a) l,
+       List.map (fun (_, x, _) -> [x]) l)
