@@ -1,4 +1,5 @@
-h2. What?
+What?
+*****
 
 ML-like languages offer a powerful construct called pattern-matching, allowing a
 programmer to safely and efficiently deconstruct structured data. This project
@@ -14,7 +15,8 @@ in @match var with | 0 -> [...]  | 0 -> [...] | _ -> [...]@.
 It is based on Luc Maranget's paper "Warnings for Pattern Matching". Curious
 readers should visit his home page for more information
 
-h2. How?
+How?
+****
 
 You should copy the files to your source directory. Do not forget utils.ml, or
 add its content to your home-made utility functions' file.
@@ -26,7 +28,8 @@ representation).
 A small example is available in example.ml. To build, just run @ocamlbuild
 example.byte@.
 
-h2. Why?
+Why?
+****
 
 This tiny module was originally developed for and is currently used in a
 fully fledged compiler for a new functional language.
