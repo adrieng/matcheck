@@ -29,7 +29,7 @@ example.byte>.
 ## Why?
 
 This tiny module was originally developed for and is currently used in a
-fully fledged compiler for a new functional language.
+full-fledged compiler for a new functional language.
 
 Adrien Guatto
 
